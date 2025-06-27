@@ -12,7 +12,9 @@ import {
   MdClose,
   MdCheckBox,
   MdCheckBoxOutlineBlank,
-  MdSelectAll 
+  MdSelectAll,
+  MdRotateLeft,
+  MdRotateRight
 } from "react-icons/md";
 import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
@@ -22,6 +24,7 @@ function App() {
   const [currentDirectory, setCurrentDirectory] = useState("");
   const [imageFiles, setImageFiles] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageKey, setImageKey] = useState(Date.now()); // For cache-busting
 
   // Batch rename states
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -31,10 +34,11 @@ function App() {
   const [renameStartString, setRenameStartString] = useState("1");
   const [renameStepSize, setRenameStepSize] = useState(1);
   const [renameResults, setRenameResults] = useState([]);
+  const [showUpscaleOptions, setShowUpscaleOptions] = useState(false);
 
   const currentImage = imageFiles[currentImageIndex];
   const currentImagePath = currentImage 
-    ? convertFileSrc(`${currentDirectory}/${currentImage}`)
+    ? `${convertFileSrc(currentDirectory + '/' + currentImage)}?v=${imageKey}`
     : null;
 
   const navigatePrevious = () => {
@@ -53,6 +57,46 @@ function App() {
 
   const selectImage = (index) => {
     setCurrentImageIndex(index);
+  };
+
+  const handleUpscale = async (scale) => {
+    if (!currentImage) return;
+
+    const toastId = toast.loading(`Upscaling to ${scale}x...`);
+    setShowUpscaleOptions(false);
+
+    try {
+      const newFilename = await invoke("upscale_image", {
+        directory: currentDirectory,
+        filename: currentImage,
+        scale: scale,
+      });
+
+      toast.success(`Created ${newFilename}`, { id: toastId });
+      
+      // Refresh the directory to see the new file
+      await loadDirectory(currentDirectory);
+
+    } catch (err) {
+      toast.error(`Error upscaling image: ${err}`, { id: toastId });
+    }
+  };
+
+  const handleRotate = async (degrees) => {
+    if (!currentImage) return;
+
+    try {
+      await invoke("rotate_image", {
+        directory: currentDirectory,
+        filename: currentImage,
+        degrees: degrees,
+      });
+      // Update the key to force a re-render and bust the cache
+      setImageKey(Date.now());
+      toast.success(`Image rotated ${degrees > 0 ? 'right' : 'left'}`);
+    } catch (err) {
+      toast.error(`Error rotating image: ${err}`);
+    }
   };
 
   const selectVideoFile = async () => {
@@ -145,15 +189,6 @@ function App() {
         toast.error(`Error opening file dialog: ${err.toString()}`);
       }
     }
-  };
-
-  const handleImageUpscale = () => {
-    if (!currentImage) return;
-    toast.success("Image upscaler feature coming soon!", {
-      icon: "🚀",
-      duration: 3000,
-    });
-    // TODO: Implement AI upscaling functionality
   };
 
   const handleBatchRename = () => {
@@ -299,14 +334,24 @@ function App() {
             {/* Utility Buttons */}
             {currentImage && (
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleImageUpscale}
-                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                  title="AI Image Upscaler"
-                >
-                  <MdAutoFixHigh size={16} />
-                  <span>Upscale</span>
-                </button>
+                {/* <div className="relative">
+                  <button
+                    onClick={() => setShowUpscaleOptions(!showUpscaleOptions)}
+                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <MdAutoFixHigh size={16} />
+                    <span>Upscale</span>
+                  </button>
+                  {showUpscaleOptions && (
+                    <div 
+                      className="absolute top-full left-0 mt-2 w-32 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10"
+                      onMouseLeave={() => setShowUpscaleOptions(false)}
+                    >
+                      <button onClick={() => handleUpscale(2)} className="w-full text-left px-4 py-2 hover:bg-gray-600 rounded-t-lg">2x Upscale</button>
+                      <button onClick={() => handleUpscale(4)} className="w-full text-left px-4 py-2 hover:bg-gray-600 rounded-b-lg">4x Upscale</button>
+                    </div>
+                  )}
+                </div> */}
                 
                 <button
                   onClick={handleBatchRename}
@@ -413,33 +458,16 @@ function App() {
         </aside>
 
         {/* Main Content - Image Display */}
-        <main className="flex-1 flex flex-col">
-          <div className="flex-1 relative">
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 relative overflow-auto">
             {currentImagePath ? (
-              <div className="image-container h-full flex items-center justify-center p-8">
+              <div className="image-container w-full h-full flex items-center justify-center p-4 md:p-8">
                 <img
+                  key={currentImagePath}
                   src={currentImagePath}
                   alt={currentImage}
                   className="max-w-full max-h-full object-contain shadow-2xl"
                 />
-                
-                {/* Navigation Buttons */}
-                {imageFiles.length > 1 && (
-                  <>
-                    <button
-                      onClick={navigatePrevious}
-                      className="absolute left-6 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
-                    >
-                      <MdChevronLeft size={24} />
-                    </button>
-                    <button
-                      onClick={navigateNext}
-                      className="absolute right-6 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
-                    >
-                      <MdChevronRight size={24} />
-                    </button>
-                  </>
-                )}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-center">
@@ -448,9 +476,8 @@ function App() {
                     <MdImage className="text-gray-400" size={40} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-semibold text-white mb-2">Select an image or folder to get started</h3>
-                    <p className="text-gray-400 mb-4">Choose a single image file or a directory containing images</p>
-                    <p className="text-sm text-gray-500">Supported: JPG, PNG, GIF, WebP, SVG, BMP, TIFF</p>
+                    <h3 className="text-2xl font-semibold text-white mb-2">Select an image to get started</h3>
+                    <p className="text-gray-400 mb-4">Use the sidebar to open an image file.</p>
                   </div>
                 </div>
               </div>
@@ -459,9 +486,9 @@ function App() {
 
           {/* Navigation Footer */}
           {currentImagePath && (
-            <footer className="bg-gray-800 border-t border-gray-700 px-6 py-3">
+            <footer className="bg-gray-800 border-t border-gray-700 px-6 py-3 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
                   <button
                     onClick={navigatePrevious}
                     disabled={imageFiles.length <= 1}
@@ -470,13 +497,25 @@ function App() {
                     <MdChevronLeft size={18} />
                   </button>
                   <button
+                    onClick={() => handleRotate(-90)}
+                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <MdRotateLeft size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleRotate(90)}
+                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <MdRotateRight size={18} />
+                  </button>
+                  <button
                     onClick={navigateNext}
                     disabled={imageFiles.length <= 1}
                     className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <MdChevronRight size={18} />
                   </button>
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-gray-400 pl-2">
                     Use ← → arrow keys or spacebar to navigate
                   </span>
                 </div>

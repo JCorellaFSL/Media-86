@@ -31,7 +31,6 @@ Media-86 is a high-performance, cross-platform desktop media viewer built with m
   - Checkboxes next to each file for selecting specific images.
   - "Select All" / "Deselect All" button for quick batch selections.
 - **Placeholder Utilities**:
-  - **AI Upscaler**: A button for a future AI-powered image upscaling feature.
   - **Video Support**: A button and placeholder function for future video file support.
 
 ## 💻 Technology Stack
