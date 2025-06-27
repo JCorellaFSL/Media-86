@@ -122,6 +122,36 @@ function App() {
     }
   };
 
+  const loadFileAndDirectory = async (filePath) => {
+    try {
+      // Extract directory from the selected file
+      const path = filePath.replace(/\\/g, '/');
+      const fileName = path.split('/').pop();
+      const directoryPath = path.substring(0, path.lastIndexOf('/'));
+      
+      setCurrentDirectory(directoryPath);
+      setMessage(`Viewing files in:`);
+      toast.success(`Opened ${fileName}`);
+      
+      // Load directory files
+      const files = await invoke("get_image_files", { path: directoryPath });
+      setImageFiles(files);
+      
+      // Find and set the selected file as current
+      const fileIndex = files.findIndex(img => img === fileName);
+      if (fileIndex !== -1) {
+        setCurrentImageIndex(fileIndex);
+      } else {
+        setCurrentImageIndex(0);
+      }
+      
+      toast.success(`Found ${files.length} image${files.length !== 1 ? 's' : ''} in directory`);
+    } catch (err) {
+      toast.error(`Error loading file: ${err}`);
+      console.error("Failed to load file and directory:", err);
+    }
+  };
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -165,7 +195,7 @@ function App() {
         const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
         
         setCurrentDirectory(directoryPath);
-        setMessage(`Selected file: ${fileName}`);
+        setMessage(`Viewing files in:`);
         toast.success(`Opened ${fileName}`);
         
         // Load directory files
