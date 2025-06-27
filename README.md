@@ -98,3 +98,13 @@ This command will bundle the application into a native installer or portable exe
     - Adjust the **Step Size** if needed.
     - Review the changes in the **Preview** section.
     - Click **Rename Files** to perform the operation.
+    
+## 🚀 Release 1.0
+
+This marks the first stable release of Media-86. Key features include:
+
+-   Image viewing and directory browsing.
+-   Advanced batch renaming capabilities.
+-   List and grid view for image thumbnails.
+-   Image rotation.
+-   Sleek, modern, and compact user interface.

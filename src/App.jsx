@@ -14,13 +14,15 @@ import {
   MdCheckBoxOutlineBlank,
   MdSelectAll,
   MdRotateLeft,
-  MdRotateRight
+  MdRotateRight,
+  MdViewList,
+  MdViewModule
 } from "react-icons/md";
 import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 
 function App() {
-  const [message, setMessage] = useState("Click a button to test functionality");
+  const [message, setMessage] = useState("Click a button to begin!");
   const [currentDirectory, setCurrentDirectory] = useState("");
   const [imageFiles, setImageFiles] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -35,6 +37,7 @@ function App() {
   const [renameStepSize, setRenameStepSize] = useState(1);
   const [renameResults, setRenameResults] = useState([]);
   const [showUpscaleOptions, setShowUpscaleOptions] = useState(false);
+  const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
 
   const currentImage = imageFiles[currentImageIndex];
   const currentImagePath = currentImage 
@@ -321,11 +324,11 @@ function App() {
       <Toaster position="top-right" />
       
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <MdImage className="text-white text-lg" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+              <img src="/icon.png" alt="Media-86 Logo" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-xl font-semibold text-white">Media-86</h1>
           </div>
@@ -379,7 +382,7 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-          <div className="p-6 border-b border-gray-700">
+          <div className="p-4 border-b border-gray-700">
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-400 mb-2">Open</label>
               <div className="flex">
@@ -399,30 +402,41 @@ function App() {
                 </button>
               </div>
             </div>
-
-            <div className="flex-1 p-6">
-              <p className="text-gray-400 mb-4">{message}</p>
-              {currentDirectory && (
-                <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-                  <p className="text-xs text-gray-400 mb-1">Current Folder</p>
-                  <p className="text-sm text-gray-200 break-all">{currentDirectory}</p>
-                </div>
-              )}
-              {imageFiles.length > 0 && (
-                <div>
-                  <p className="text-sm text-gray-300 mb-2">Images found: {imageFiles.length}</p>
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={selectAllFiles}
-                      className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors"
-                    >
-                      <MdSelectAll size={18} />
-                      <span>{selectedFiles.size === imageFiles.length ? 'Deselect All' : 'Select All'}</span>
+            <p className="text-gray-400">{message}</p>
+          </div>
+          
+          <div className="flex-1 p-4 overflow-y-auto">
+            {currentDirectory && (
+              <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+                <p className="text-xs text-gray-400 mb-1">Current Folder</p>
+                <p className="text-sm text-gray-200 break-all">{currentDirectory}</p>
+              </div>
+            )}
+            {imageFiles.length > 0 && (
+              <div>
+                <p className="text-sm text-gray-300 mb-2">Images found: {imageFiles.length}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={selectAllFiles}
+                    className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    <MdSelectAll size={18} />
+                    <span>{selectedFiles.size === imageFiles.length ? 'Deselect All' : 'Select All'}</span>
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    <button onClick={() => setViewMode('list')} className={`p-1 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
+                      <MdViewList size={18} />
                     </button>
-                    {selectedFiles.size > 0 && (
-                      <span className="text-sm text-blue-400">{selectedFiles.size} selected</span>
-                    )}
+                    <button onClick={() => setViewMode('grid')} className={`p-1 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
+                      <MdViewModule size={18} />
+                    </button>
                   </div>
+                </div>
+                {selectedFiles.size > 0 && (
+                    <span className="text-sm text-blue-400 mb-2 block">{selectedFiles.size} selected</span>
+                )}
+
+                {viewMode === 'list' && (
                   <div className="max-h-64 overflow-y-auto">
                     {imageFiles.map((file, index) => (
                       <div 
@@ -451,9 +465,45 @@ function App() {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+
+                {viewMode === 'grid' && (
+                  <div className="max-h-64 overflow-y-auto grid grid-cols-3 gap-2">
+                    {imageFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className={`relative group cursor-pointer rounded overflow-hidden border-2 ${
+                          index === currentImageIndex ? 'border-blue-500' : 'border-transparent'
+                        }`}
+                        onClick={() => selectImage(index)}
+                      >
+                        <img
+                          src={`${convertFileSrc(currentDirectory + '/' + file)}`}
+                          alt={file}
+                          className="w-full h-20 object-cover"
+                        />
+                        <div
+                          className="absolute top-1 left-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFileSelection(file);
+                          }}
+                        >
+                          {selectedFiles.has(file) ? (
+                            <MdCheckBox size={20} className="text-blue-500 bg-white/70 rounded" />
+                          ) : (
+                            <MdCheckBoxOutlineBlank size={20} className="text-white bg-black/50 rounded group-hover:block hidden" />
+                          )}
+                        </div>
+                         <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-1">
+                          <p className="text-white text-[10px] truncate">{file}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </aside>
 
@@ -461,7 +511,7 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 relative overflow-auto">
             {currentImagePath ? (
-              <div className="image-container w-full h-full flex items-center justify-center p-4 md:p-8">
+              <div className="image-container w-full h-full flex items-center justify-center p-2 md:p-4">
                 <img
                   key={currentImagePath}
                   src={currentImagePath}
@@ -486,7 +536,7 @@ function App() {
 
           {/* Navigation Footer */}
           {currentImagePath && (
-            <footer className="bg-gray-800 border-t border-gray-700 px-6 py-3 flex-shrink-0">
+            <footer className="bg-gray-800 border-t border-gray-700 px-4 py-2 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <button
