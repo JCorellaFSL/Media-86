@@ -1,85 +1,50 @@
-# Media-86
+# Media-86 🖼️
 
-![Media-86 Screenshot](https://i.imgur.com/rS2aG6J.jpeg)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/JCorellaFSL/Media-86)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2.x-orange.svg)](https://tauri.app/)
 
-Media-86 is a high-performance, cross-platform desktop media viewer built with modern web technologies. It leverages the power of Rust on the backend for speed and safety, and a sleek React frontend for a responsive user experience. It's designed for efficient media browsing and management, with a special focus on batch processing tools.
+**Media-86** is a modern, lightweight image viewer and batch processor built with Tauri, React, and Rust. Designed for efficiency and ease of use, it provides a seamless experience for viewing, organizing, and processing your image collections.
 
 ## ✨ Features
 
-- **Versatile Media Opening**:
-  - Open individual image files (`.jpg`, `.png`, `.webp`, etc.).
-  - When an image is opened, its entire parent directory is loaded into the sidebar for seamless browsing.
-- **Fluid Navigation**:
-  - Clickable list of images in the sidebar.
-  - On-screen previous/next buttons for quick navigation.
-  - Full keyboard support: Use **Arrow Keys** (← →) and the **Spacebar** to move between images.
-- **Advanced Batch Renaming**:
-  - A powerful utility to rename multiple files at once.
-  - **Modes**: Choose to rename the *current* image, *selected* files, or *all* files in the folder.
-  - **Smart Pattern System**:
-    - Use `{n}` for a number sequence.
-    - Use `{ext}` for the original file extension.
-  - **Intelligent Fallbacks**:
-    - If `{n}` is omitted when renaming multiple files, a number is automatically appended to prevent overwrites.
-    - If `{ext}` is omitted, the original file extension is automatically preserved.
-  - **Intuitive Number Padding**: The number sequence's padding is automatically determined by the "Start Number" field.
-    - `1` → 1, 2, 3...
-    - `01` → 01, 02, 03...
-    - `001` → 001, 002, 003...
-  - **Live Preview**: See the results of your renaming pattern in real-time before committing any changes.
-- **Selection Tools**:
-  - Checkboxes next to each file for selecting specific images.
-  - "Select All" / "Deselect All" button for quick batch selections.
-- **Placeholder Utilities**:
-  - **Video Support**: A button and placeholder function for future video file support.
+### 🖼️ **Image Viewing**
+- **Universal Format Support**: View JPG, PNG, GIF, BMP, WebP, SVG, TIFF, and ICO files
+- **Dual View Modes**: Switch between compact list view and large thumbnail grid
+- **Keyboard Navigation**: Navigate through images with arrow keys and spacebar
+- **File Association**: Set as default image viewer - double-click any image to open in Media-86
+- **Directory Auto-Loading**: Automatically loads all images from the selected file's directory
 
-## 💻 Technology Stack
+### ⚡ **Batch Processing**
+- **Smart Batch Renaming**: Rename multiple files with customizable patterns and numbering
+- **Image Rotation**: Rotate images 90° clockwise or counterclockwise with a single click
+- **Intelligent Upscaling**: Upscale images with high-quality Lanczos3 filtering
+- **Preview & Validation**: See exactly what will be renamed before applying changes
+- **Conflict Detection**: Automatic detection and prevention of file overwrites
 
-- **Backend Framework**: [Tauri](https://tauri.app/) (using Rust)
-- **Frontend Framework**: [React](https://reactjs.org/) (bootstrapped with [Vite](https://vitejs.dev/))
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Icons**: [React Icons](https://react-icons.github.io/react-icons/)
+### 🎨 **User Experience**
+- **Modern Interface**: Clean, intuitive design with Tailwind CSS and DaisyUI
+- **Dark Theme**: Elegant dark theme optimized for extended viewing sessions
+- **Responsive Layout**: Adaptive interface that works on different screen sizes
+- **Real-time Feedback**: Toast notifications for all operations
+- **Compact Design**: Minimized padding and optimized space usage
 
-## 🚀 Getting Started
+### 🛠️ **Technical Excellence**
+- **Cross-Platform**: Native performance on Windows, macOS, and Linux
+- **Single Instance**: Multiple file opens focus existing window instead of creating duplicates
+- **Memory Efficient**: Rust backend ensures minimal resource usage
+- **Fast Startup**: Quick launch times with optimized bundling
 
-### Prerequisites
+## 🚀 Release 1.0
 
-- [Node.js](https://nodejs.org/en/)
-- [Rust](https://www.rust-lang.org/tools/install) and Cargo
-- Follow the Tauri environment setup guide for your specific OS: [Tauri Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites)
+Media-86 has reached **version 1.0**, marking a stable and feature-complete release. This milestone includes:
 
-### Installation & Development
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd Media-86
-    ```
-
-2.  **Install frontend dependencies:**
-    ```bash
-    npm install
-    ```
-
-3.  **Run the application in development mode:**
-    ```bash
-    npm run tauri dev
-    ```
-    This command will start the Vite development server for the frontend and build/run the Tauri application, enabling hot-reloading for both.
-
-### Building for Production
-
-To create optimized, distributable binaries for your current operating system, run:
-
-```bash
-npm run tauri build
-```
-
-This command will bundle the application into a native installer or portable executable. The output can be found in `src-tauri/target/release/bundle/`.
-
-- **Windows**: Generates a Microsoft Installer (`.msi`) for easy installation and a portable `.exe` inside a `.zip` archive.
-- **Linux**: Generates a portable `.AppImage` file and a Debian package (`.deb`). Flatpak support can be configured manually.
-- **macOS**: Generates an Application bundle (`.app`) and a distributable disk image (`.dmg`).
+- ✅ **Complete File Association Support**: Seamlessly integrates with your operating system
+- ✅ **Robust Batch Processing**: Reliable renaming, rotation, and upscaling operations  
+- ✅ **Polished User Interface**: Refined design with improved usability
+- ✅ **Cross-Platform Compatibility**: Tested and optimized for all major platforms
+- ✅ **Performance Optimizations**: Enhanced speed and reduced memory footprint
+- ✅ **Comprehensive Error Handling**: Graceful handling of edge cases and user errors
 
 ## 📋 Usage Guide
 
@@ -98,13 +63,3 @@ This command will bundle the application into a native installer or portable exe
     - Adjust the **Step Size** if needed.
     - Review the changes in the **Preview** section.
     - Click **Rename Files** to perform the operation.
-    
-## 🚀 Release 1.0
-
-This marks the first stable release of Media-86. Key features include:
-
--   Image viewing and directory browsing.
--   Advanced batch renaming capabilities.
--   List and grid view for image thumbnails.
--   Image rotation.
--   Sleek, modern, and compact user interface.
