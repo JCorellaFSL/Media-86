@@ -1,8 +1,8 @@
-use image;
-use image::imageops::FilterType;
+use image::{self, imageops::FilterType, ImageFormat, DynamicImage};
 use std::fs;
 use std::path::Path;
-use tauri::Manager;
+use tauri::{Manager, Emitter};
+use serde::{Deserialize, Serialize};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -212,7 +212,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // When a new instance is launched with arguments, send them to the existing instance
+            if argv.len() > 1 {
+                // argv[0] is the executable path, argv[1] should be the file path
+                let file_path = &argv[1];
+                app.emit("open-file", file_path).unwrap();
+            }
             app.get_webview_window("main")
                 .expect("no main window")
                 .set_focus()

@@ -196,6 +196,28 @@ function App() {
     handleStartupArgs();
   }, []); // Run only once on component mount
 
+  // Listen for file open events from new instances
+  useEffect(() => {
+    const setupEventListener = async () => {
+      const { listen } = await import('@tauri-apps/api/event');
+      const unlisten = await listen('open-file', (event) => {
+        const filePath = event.payload;
+        if (typeof filePath === 'string') {
+          loadFileAndDirectory(filePath);
+        }
+      });
+      
+      return unlisten;
+    };
+
+    let unlisten;
+    setupEventListener().then(fn => unlisten = fn);
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   const selectImageFile = async () => {
     try {
       const selectedFile = await open({
