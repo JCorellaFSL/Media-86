@@ -1,4 +1,4 @@
-# Media-86 🖼️
+# Media-86 <img src="public/icon.png" alt="Media-86 Icon" width="32" height="32">
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/JCorellaFSL/Media-86)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -6,30 +6,30 @@
 
 **Media-86** is a modern, lightweight image viewer and batch processor built with Tauri, React, and Rust. Designed for efficiency and ease of use, it provides a seamless experience for viewing, organizing, and processing your image collections.
 
-## ✨ Features
+## 🌟 Features
 
-### 🖼️ **Image Viewing**
+### 📷 **Image Viewing**
 - **Universal Format Support**: View JPG, PNG, GIF, BMP, WebP, SVG, TIFF, and ICO files
 - **Dual View Modes**: Switch between compact list view and large thumbnail grid
 - **Keyboard Navigation**: Navigate through images with arrow keys and spacebar
 - **File Association**: Set as default image viewer - double-click any image to open in Media-86
 - **Directory Auto-Loading**: Automatically loads all images from the selected file's directory
 
-### ⚡ **Batch Processing**
+### 🔧 **Batch Processing**
 - **Smart Batch Renaming**: Rename multiple files with customizable patterns and numbering
 - **Image Rotation**: Rotate images 90° clockwise or counterclockwise with a single click
 - **Intelligent Upscaling**: Upscale images with high-quality Lanczos3 filtering
 - **Preview & Validation**: See exactly what will be renamed before applying changes
 - **Conflict Detection**: Automatic detection and prevention of file overwrites
 
-### 🎨 **User Experience**
+### 💻 **User Experience**
 - **Modern Interface**: Clean, intuitive design with Tailwind CSS and DaisyUI
 - **Dark Theme**: Elegant dark theme optimized for extended viewing sessions
 - **Responsive Layout**: Adaptive interface that works on different screen sizes
 - **Real-time Feedback**: Toast notifications for all operations
 - **Compact Design**: Minimized padding and optimized space usage
 
-### 🛠️ **Technical Excellence**
+### ⚙️ **Technical Excellence**
 - **Cross-Platform**: Native performance on Windows, macOS, and Linux
 - **Single Instance**: Multiple file opens focus existing window instead of creating duplicates
 - **Memory Efficient**: Rust backend ensures minimal resource usage
