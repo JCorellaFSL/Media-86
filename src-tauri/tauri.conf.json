@@ -34,6 +34,19 @@
       }
     }
   },
+  "plugins": {
+    "cli": {
+      "description": "Media-86 Image Viewer",
+      "args": [
+        {
+          "name": "file",
+          "index": 1,
+          "takesValue": true,
+          "description": "Image file to open"
+        }
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

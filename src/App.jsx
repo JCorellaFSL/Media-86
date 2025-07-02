@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getMatches } from "@tauri-apps/plugin-cli";
 import { 
   MdImage, 
   MdMovie,
@@ -174,6 +175,26 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imageFiles.length]);
+
+  // Handle command-line arguments when app starts
+  useEffect(() => {
+    const handleStartupArgs = async () => {
+      try {
+        const matches = await getMatches();
+        // Check for the 'file' argument we configured
+        if (matches.args && matches.args.file && matches.args.file.value) {
+          const filePath = matches.args.file.value;
+          if (typeof filePath === 'string') {
+            await loadFileAndDirectory(filePath);
+          }
+        }
+      } catch (err) {
+        console.log("No startup arguments or error getting CLI matches:", err);
+      }
+    };
+
+    handleStartupArgs();
+  }, []); // Run only once on component mount
 
   const selectImageFile = async () => {
     try {
