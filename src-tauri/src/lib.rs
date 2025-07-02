@@ -210,6 +210,7 @@ fn upscale_image(directory: String, filename: String, scale: u32) -> Result<Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             app.get_webview_window("main")
