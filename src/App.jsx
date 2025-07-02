@@ -1,114 +1,114 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getMatches } from "@tauri-apps/plugin-cli";
-import { 
-  MdImage, 
-  MdMovie,
-  MdChevronLeft, 
-  MdChevronRight,
-  MdAutoFixHigh,
-  MdDriveFileRenameOutline,
-  MdClose,
-  MdCheckBox,
-  MdCheckBoxOutlineBlank,
-  MdSelectAll,
-  MdRotateLeft,
-  MdRotateRight,
-  MdViewList,
-  MdViewModule
-} from "react-icons/md";
 import toast, { Toaster } from "react-hot-toast";
+
+// Context
+import { AppProvider, useAppContext } from "./context/AppContext";
+
+// Advanced Hooks
+import { useImageNavigation } from "./hooks/useImageNavigation";
+import { useFileSelection } from "./hooks/useFileSelection";
+import { useLoadingStates } from "./hooks/useLoadingStates";
+import { useDragDrop } from "./hooks/useDragDrop";
+import { useTheme } from "./hooks/useTheme";
+import { useAdvancedZoom } from "./hooks/useAdvancedZoom";
+import { useSlideshow } from "./hooks/useSlideshow";
+import { useCustomKeyboardShortcuts } from "./hooks/useCustomKeyboardShortcuts";
+
+// Core Components (eagerly loaded)
+import NavigationBar from "./components/Navigation/NavigationBar";
+import NavigationFooter from "./components/Navigation/NavigationFooter";
+import LoadingSpinner from "./components/LoadingSpinner";
+import AdvancedToolbar from "./components/UI/AdvancedToolbar";
+
+// Lazy-loaded Components (code splitting)
+const OptimizedImageViewer = lazy(() => import("./components/ImageViewer/OptimizedImageViewer"));
+const EnhancedSidebar = lazy(() => import("./components/Sidebar/EnhancedSidebar"));
+const RenameModal = lazy(() => import("./components/Modals/RenameModal"));
+const ImageComparison = lazy(() => import("./components/ImageViewer/ImageComparison"));
+
 import "./App.css";
 
-function App() {
-  const [message, setMessage] = useState("Click a button to begin!");
-  const [currentDirectory, setCurrentDirectory] = useState("");
-  const [imageFiles, setImageFiles] = useState([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imageKey, setImageKey] = useState(Date.now()); // For cache-busting
+function AppContent() {
+  const {
+    currentDirectory,
+    setCurrentDirectory,
+    imageFiles,
+    setImageFiles,
+    message,
+    setMessage,
+    imageKey,
+    refreshImageKey,
+    viewMode,
+    setViewMode,
+  } = useAppContext();
 
-  // Batch rename states
+  // Custom hooks
+  const imageNavigation = useImageNavigation(imageFiles);
+  const fileSelection = useFileSelection(imageFiles);
+  const { loadingStates, setLoading } = useLoadingStates();
+  const theme = useTheme();
+  const zoom = useAdvancedZoom();
+
+  // Advanced UI states
   const [showRenameModal, setShowRenameModal] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState(new Set());
-  const [renameMode, setRenameMode] = useState("current"); // "current", "selected", "all"
-  const [renamePattern, setRenamePattern] = useState("");
-  const [renameStartString, setRenameStartString] = useState("1");
-  const [renameStepSize, setRenameStepSize] = useState(1);
-  const [renameResults, setRenameResults] = useState([]);
-  const [showUpscaleOptions, setShowUpscaleOptions] = useState(false);
-  const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [comparisonActive, setComparisonActive] = useState(false);
+  const [comparisonImages, setComparisonImages] = useState({ left: null, right: null });
+  const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const currentImage = imageFiles[currentImageIndex];
-  const currentImagePath = currentImage 
-    ? `${convertFileSrc(currentDirectory + '/' + currentImage)}?v=${imageKey}`
-    : null;
+  // Slideshow functionality
+  const slideshow = useSlideshow(
+    imageFiles,
+    imageNavigation.currentImageIndex,
+    imageNavigation.navigateNext,
+    imageNavigation.navigatePrevious
+  );
 
-  const navigatePrevious = () => {
-    if (imageFiles.length === 0) return;
-    setCurrentImageIndex(prev => 
-      prev === 0 ? imageFiles.length - 1 : prev - 1
-    );
-  };
+  // Advanced keyboard shortcuts
+  const keyboardShortcuts = useCustomKeyboardShortcuts({
+    navigateNext: imageNavigation.navigateNext,
+    navigatePrevious: imageNavigation.navigatePrevious,
+    navigateFirst: () => imageNavigation.setCurrentImageIndex(0),
+    navigateLast: () => imageNavigation.setCurrentImageIndex(imageFiles.length - 1),
+    zoomIn: zoom.zoomIn,
+    zoomOut: zoom.zoomOut,
+    resetZoom: zoom.resetZoom,
+    actualSize: zoom.setActualSize,
+    fitToWidth: zoom.fitToWidth,
+    fitToHeight: zoom.fitToHeight,
+    toggleFullscreen: () => setIsFullscreen(prev => !prev),
+    toggleSidebar: () => setShowSidebar(prev => !prev),
+    toggleSlideshow: slideshow.toggleSlideshow,
+    pauseSlideshow: slideshow.stopSlideshow,
+    toggleTheme: theme.toggleTheme,
+    showHelp: () => setShowHelp(prev => !prev),
+    closeModal: () => {
+      setShowRenameModal(false);
+      setShowSettings(false);
+      setShowHelp(false);
+      if (comparisonActive) setComparisonActive(false);
+    },
+  });
 
-  const navigateNext = () => {
-    if (imageFiles.length === 0) return;
-    setCurrentImageIndex(prev => 
-      prev === imageFiles.length - 1 ? 0 : prev + 1
-    );
-  };
+  // Memoized current image path
+  const currentImagePath = useMemo(() => {
+    return imageNavigation.currentImage 
+      ? `${convertFileSrc(currentDirectory + '/' + imageNavigation.currentImage)}?v=${imageKey}`
+      : null;
+  }, [currentDirectory, imageNavigation.currentImage, imageKey]);
 
-  const selectImage = (index) => {
-    setCurrentImageIndex(index);
-  };
-
-  const handleUpscale = async (scale) => {
-    if (!currentImage) return;
-
-    const toastId = toast.loading(`Upscaling to ${scale}x...`);
-    setShowUpscaleOptions(false);
-
-    try {
-      const newFilename = await invoke("upscale_image", {
-        directory: currentDirectory,
-        filename: currentImage,
-        scale: scale,
-      });
-
-      toast.success(`Created ${newFilename}`, { id: toastId });
-      
-      // Refresh the directory to see the new file
-      await loadDirectory(currentDirectory);
-
-    } catch (err) {
-      toast.error(`Error upscaling image: ${err}`, { id: toastId });
-    }
-  };
-
-  const handleRotate = async (degrees) => {
-    if (!currentImage) return;
-
-    try {
-      await invoke("rotate_image", {
-        directory: currentDirectory,
-        filename: currentImage,
-        degrees: degrees,
-      });
-      // Update the key to force a re-render and bust the cache
-      setImageKey(Date.now());
-      toast.success(`Image rotated ${degrees > 0 ? 'right' : 'left'}`);
-    } catch (err) {
-      toast.error(`Error rotating image: ${err}`);
-    }
-  };
-
-  const selectVideoFile = async () => {
-    toast("Video support is coming soon!", { icon: "🎥" });
-  };
-
-  const loadDirectory = async (path) => {
+  // Directory and file operations
+  const loadDirectory = useCallback(async (path) => {
     if (!path) return;
+    
+    setLoading('directory', true);
+    const toastId = toast.loading("Loading directory...");
     
     try {
       const files = await invoke("get_image_files", { path });
@@ -116,14 +116,21 @@ function App() {
       setCurrentDirectory(path);
       
       if (files.length === 0) {
-        toast("No images found in this directory", { icon: "⚠️" });
+        toast("No images found in this directory", { icon: "⚠️", id: toastId });
+      } else {
+        toast.success(`Found ${files.length} image${files.length !== 1 ? 's' : ''}`, { id: toastId });
       }
     } catch (err) {
-      toast.error(`Error loading directory: ${err}`);
+      toast.error(`Error loading directory: ${err}`, { id: toastId });
+    } finally {
+      setLoading('directory', false);
     }
-  };
+  }, [setImageFiles, setCurrentDirectory, setLoading]);
 
-  const loadFileAndDirectory = async (filePath) => {
+  const loadFileAndDirectory = useCallback(async (filePath) => {
+    setLoading('directory', true);
+    const toastId = toast.loading("Loading file and directory...");
+    
     try {
       // Extract directory from the selected file
       const path = filePath.replace(/\\/g, '/');
@@ -132,7 +139,6 @@ function App() {
       
       setCurrentDirectory(directoryPath);
       setMessage(`Viewing files in:`);
-      toast.success(`Opened ${fileName}`);
       
       // Load directory files
       const files = await invoke("get_image_files", { path: directoryPath });
@@ -141,47 +147,259 @@ function App() {
       // Find and set the selected file as current
       const fileIndex = files.findIndex(img => img === fileName);
       if (fileIndex !== -1) {
-        setCurrentImageIndex(fileIndex);
+        imageNavigation.setCurrentImageIndex(fileIndex);
       } else {
-        setCurrentImageIndex(0);
+        imageNavigation.setCurrentImageIndex(0);
       }
       
-      toast.success(`Found ${files.length} image${files.length !== 1 ? 's' : ''} in directory`);
+      toast.success(`Opened ${fileName} - Found ${files.length} image${files.length !== 1 ? 's' : ''}`, { id: toastId });
     } catch (err) {
-      toast.error(`Error loading file: ${err}`);
+      toast.error(`Error loading file: ${err}`, { id: toastId });
       console.error("Failed to load file and directory:", err);
+    } finally {
+      setLoading('directory', false);
     }
-  };
+  }, [setCurrentDirectory, setMessage, setImageFiles, imageNavigation, setLoading]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (imageFiles.length === 0) return;
+  const selectImageFile = useCallback(async () => {
+    setLoading('fileSelection', true);
+    
+    try {
+      const selectedFile = await open({
+        multiple: false,
+        filters: [
+          {
+            name: 'Images',
+            extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'ico']
+          }
+        ],
+        title: "Select an image file"
+      });
       
-      switch(event.key) {
-        case 'ArrowLeft':
-          navigatePrevious();
-          break;
-        case 'ArrowRight':
-        case ' ': // Spacebar
-          event.preventDefault(); // Prevent page scroll
-          navigateNext();
-          break;
-        default:
-          break;
+      if (selectedFile) {
+        await loadFileAndDirectory(selectedFile);
       }
-    };
+    } catch (err) {
+      console.error("Failed to open file dialog:", err);
+      if (!err.toString().includes("cancelled")) {
+        toast.error(`Error opening file dialog: ${err.toString()}`);
+      }
+    } finally {
+      setLoading('fileSelection', false);
+    }
+  }, [loadFileAndDirectory, setLoading]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  const selectDocumentFile = useCallback(async () => {
+    setLoading('fileSelection', true);
+    
+    try {
+      const selectedFile = await open({
+        multiple: false,
+        filters: [
+          {
+            name: 'Documents',
+            extensions: ['md', 'pdf', 'txt', 'doc', 'docx']
+          }
+        ],
+        title: "Select a document file"
+      });
+      
+      if (selectedFile) {
+        const fileName = selectedFile.split(/[\\/]/).pop();
+        toast.success(`Selected document: ${fileName}`);
+        toast("Document viewer coming soon!", { icon: "📄" });
+      }
+    } catch (err) {
+      console.error("Failed to open document dialog:", err);
+      if (!err.toString().includes("cancelled")) {
+        toast.error(`Error opening document dialog: ${err.toString()}`);
+      }
+    } finally {
+      setLoading('fileSelection', false);
+    }
+  }, [setLoading]);
+
+  // Image operations
+  const handleRotate = useCallback(async (degrees) => {
+    if (!imageNavigation.currentImage) return;
+
+    setLoading('rotation', true);
+    const toastId = toast.loading(`Rotating image...`);
+
+    try {
+      await invoke("rotate_image", {
+        directory: currentDirectory,
+        filename: imageNavigation.currentImage,
+        degrees: degrees,
+      });
+      refreshImageKey();
+      toast.success(`Image rotated ${degrees > 0 ? 'right' : 'left'}`, { id: toastId });
+    } catch (err) {
+      toast.error(`Error rotating image: ${err}`, { id: toastId });
+    } finally {
+      setLoading('rotation', false);
+    }
+  }, [imageNavigation.currentImage, currentDirectory, refreshImageKey, setLoading]);
+
+  // Rename operations
+  const handleBatchRename = useCallback(() => {
+    if (imageFiles.length === 0) return;
+    setShowRenameModal(true);
   }, [imageFiles.length]);
 
-  // Handle command-line arguments when app starts
+  const executeRename = useCallback(async (renameConfig) => {
+    setLoading('rename', true);
+    
+    try {
+      // Build file mappings based on rename config
+      let filesToRename = [];
+      switch (renameConfig.mode) {
+        case "current":
+          if (imageNavigation.currentImage) filesToRename = [imageNavigation.currentImage];
+          break;
+        case "selected":
+          filesToRename = Array.from(fileSelection.selectedFiles);
+          break;
+        case "all":
+          filesToRename = [...imageFiles];
+          break;
+        default:
+          return;
+      }
+
+      if (!renameConfig.pattern.trim()) {
+        toast.error("No rename pattern provided");
+        return;
+      }
+
+      const startNumber = parseInt(renameConfig.startString, 10) || 0;
+      const padLength = renameConfig.startString.length;
+
+      const mappings = filesToRename.map((file, index) => {
+        const originalExtension = '.' + file.split('.').pop();
+        let newName = renameConfig.pattern;
+
+        // Handle numbering
+        const number = startNumber + (index * renameConfig.stepSize);
+        if (renameConfig.pattern.includes('{n}')) {
+          newName = newName.replace(/\{n\}/g, number.toString().padStart(padLength, '0'));
+        } else if (filesToRename.length > 1) {
+          newName += `_${number.toString().padStart(padLength, '0')}`;
+        }
+
+        // Handle extension
+        if (!renameConfig.pattern.includes('{ext}')) {
+          newName += originalExtension;
+        } else {
+          newName = newName.replace(/\{ext\}/g, originalExtension);
+        }
+
+        return [file, newName];
+      });
+
+      const toastId = toast.loading(`Renaming ${mappings.length} file(s)...`);
+
+      await invoke("rename_files", {
+        directory: currentDirectory,
+        fileMappings: mappings
+      });
+      
+      toast.success(`Successfully renamed ${mappings.length} file(s)`, { id: toastId });
+      
+      // Refresh the directory
+      await loadDirectory(currentDirectory);
+      
+      // Clear selection after rename
+      fileSelection.clearSelection();
+      
+    } catch (err) {
+      toast.error(`Error renaming files: ${err}`);
+    } finally {
+      setLoading('rename', false);
+      setShowRenameModal(false);
+    }
+  }, [imageNavigation.currentImage, fileSelection, imageFiles, currentDirectory, setLoading, loadDirectory]);
+
+  const closeRenameModal = useCallback(() => {
+    setShowRenameModal(false);
+  }, []);
+
+  // View mode setters
+  const setListView = useCallback(() => setViewMode('list'), [setViewMode]);
+  const setGridView = useCallback(() => setViewMode('grid'), [setViewMode]);
+
+  // Advanced UI handlers
+  const handleToggleComparison = useCallback(() => {
+    if (!comparisonActive && imageFiles.length >= 2) {
+      // Start comparison with current image and next image
+      const currentIndex = imageNavigation.currentImageIndex;
+      const nextIndex = (currentIndex + 1) % imageFiles.length;
+      
+      setComparisonImages({
+        left: imageFiles[currentIndex],
+        right: imageFiles[nextIndex]
+      });
+      setComparisonActive(true);
+    } else {
+      setComparisonActive(false);
+    }
+  }, [comparisonActive, imageFiles, imageNavigation.currentImageIndex]);
+
+  const handleCloseComparison = useCallback(() => {
+    setComparisonActive(false);
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+    // In a real implementation, you'd use the Fullscreen API here
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    setShowSidebar(prev => !prev);
+  }, []);
+
+  const handleShowSettings = useCallback(() => {
+    setShowSettings(true);
+  }, []);
+
+  const handleShowHelp = useCallback(() => {
+    setShowHelp(true);
+  }, []);
+
+  // Update zoom when image changes
+  useEffect(() => {
+    if (imageNavigation.currentImage && zoom.containerRef.current) {
+      zoom.updateContainerSize();
+    }
+  }, [imageNavigation.currentImage, zoom]);
+
+  // Drag & Drop functionality (after functions are defined)
+  const { isDragOver, draggedFileCount, dragHandlers } = useDragDrop(
+    loadFileAndDirectory, // Handle file drops
+    loadDirectory // Handle directory drops
+  );
+
+  // Handle keyboard events
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      keyboardShortcuts.handleKeyPress(e);
+      slideshow.handleKeyPress(e);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [keyboardShortcuts, slideshow]);
+
+  // CLI and events setup
   useEffect(() => {
     const handleStartupArgs = async () => {
       try {
         const matches = await getMatches();
-        // Check for the 'file' argument we configured
         if (matches.args && matches.args.file && matches.args.file.value) {
           const filePath = matches.args.file.value;
           if (typeof filePath === 'string') {
@@ -194,9 +412,8 @@ function App() {
     };
 
     handleStartupArgs();
-  }, []); // Run only once on component mount
+  }, [loadFileAndDirectory]);
 
-  // Listen for file open events from new instances
   useEffect(() => {
     const setupEventListener = async () => {
       const { listen } = await import('@tauri-apps/api/event');
@@ -216,513 +433,161 @@ function App() {
     return () => {
       if (unlisten) unlisten();
     };
-  }, []);
-
-  const selectImageFile = async () => {
-    try {
-      const selectedFile = await open({
-        multiple: false,
-        filters: [
-          {
-            name: 'Images',
-            extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff', 'ico']
-          }
-        ],
-        title: "Select an image file"
-      });
-      
-      if (selectedFile) {
-        // Extract directory from the selected file
-        const filePath = selectedFile.replace(/\\/g, '/');
-        const fileName = filePath.split('/').pop();
-        const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
-        
-        setCurrentDirectory(directoryPath);
-        setMessage(`Viewing files in:`);
-        toast.success(`Opened ${fileName}`);
-        
-        // Load directory files
-        try {
-          const files = await invoke("get_image_files", { path: directoryPath });
-          setImageFiles(files);
-          
-          // Find and set the selected file as current
-          const fileIndex = files.findIndex(img => img === fileName);
-          if (fileIndex !== -1) {
-            setCurrentImageIndex(fileIndex);
-          } else {
-            setCurrentImageIndex(0);
-          }
-          
-          toast.success(`Found ${files.length} image${files.length !== 1 ? 's' : ''} in directory`);
-        } catch (err) {
-          toast.error(`Error loading directory: ${err}`);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to open file dialog:", err);
-      if (!err.toString().includes("cancelled")) {
-        toast.error(`Error opening file dialog: ${err.toString()}`);
-      }
-    }
-  };
-
-  const handleBatchRename = () => {
-    if (imageFiles.length === 0) return;
-    setShowRenameModal(true);
-    
-    // Set default mode based on selections
-    if (selectedFiles.size > 0) {
-      setRenameMode("selected");
-    } else {
-      setRenameMode("current");
-    }
-  };
-
-  const toggleFileSelection = (filename) => {
-    const newSelected = new Set(selectedFiles);
-    if (newSelected.has(filename)) {
-      newSelected.delete(filename);
-    } else {
-      newSelected.add(filename);
-    }
-    setSelectedFiles(newSelected);
-  };
-
-  const selectAllFiles = () => {
-    if (selectedFiles.size === imageFiles.length) {
-      setSelectedFiles(new Set());
-    } else {
-      setSelectedFiles(new Set(imageFiles));
-    }
-  };
-
-  const formatNumber = (number, padLength) => {
-    return number.toString().padStart(padLength, '0');
-  };
-
-  const generateNewFilenames = () => {
-    let filesToRename = [];
-    switch (renameMode) {
-      case "current":
-        if (currentImage) filesToRename = [currentImage];
-        break;
-      case "selected":
-        filesToRename = Array.from(selectedFiles);
-        break;
-      case "all":
-        filesToRename = [...imageFiles];
-        break;
-      default:
-        return [];
-    }
-
-    if (!renamePattern.trim()) {
-      return filesToRename.map(file => [file, file]);
-    }
-
-    const startNumber = parseInt(renameStartString, 10) || 0;
-    const padLength = renameStartString.length;
-
-    return filesToRename.map((file, index) => {
-      const originalExtension = '.' + file.split('.').pop();
-      let newName = renamePattern;
-
-      // Handle numbering
-      const number = startNumber + (index * renameStepSize);
-      if (renamePattern.includes('{n}')) {
-        newName = newName.replace(/\{n\}/g, formatNumber(number, padLength));
-      } else if (filesToRename.length > 1) {
-        newName += `_${formatNumber(number, padLength)}`;
-      }
-
-      // Handle extension
-      if (!renamePattern.includes('{ext}')) {
-        newName += originalExtension;
-      } else {
-        newName = newName.replace(/\{ext\}/g, originalExtension);
-      }
-      
-      return [file, newName];
-    });
-  };
-
-  const executeRename = async () => {
-    const mappings = generateNewFilenames();
-    if (mappings.length === 0) {
-      toast.error("No files to rename");
-      return;
-    }
-
-    try {
-      await invoke("rename_files", {
-        directory: currentDirectory,
-        fileMappings: mappings
-      });
-      
-      toast.success(`Successfully renamed ${mappings.length} file(s)`);
-      
-      // Refresh the directory to show new names
-      const oldSelected = new Set(selectedFiles);
-      
-      await loadDirectory(currentDirectory);
-      
-      // Try to restore selection state
-      const newNames = new Map(mappings.map(([oldName, newName]) => [oldName, newName]));
-      const newSelectedFiles = new Set();
-      oldSelected.forEach(oldFile => {
-        if (newNames.has(oldFile)) {
-          newSelectedFiles.add(newNames.get(oldFile));
-        }
-      });
-      setSelectedFiles(newSelectedFiles);
-      
-    } catch (err) {
-      toast.error(`Error renaming files: ${err}`);
-    } finally {
-      closeRenameModal();
-    }
-  };
-
-  const closeRenameModal = () => {
-    setShowRenameModal(false);
-    setRenamePattern("");
-    setRenameStartString("1");
-    setRenameStepSize(1);
-    setRenameResults([]);
-  };
+  }, [loadFileAndDirectory]);
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col">
-      <Toaster position="top-right" />
+    <div 
+      className={`h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col relative transition-colors duration-200 ${
+        isDragOver ? 'ring-4 ring-blue-500 ring-opacity-50' : ''
+      } ${isFullscreen ? 'fullscreen' : ''}`}
+      {...dragHandlers}
+    >
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          className: 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white',
+        }}
+      />
       
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-              <img src="/icon.png" alt="Media-86 Logo" className="w-full h-full object-cover" />
-            </div>
-            <h1 className="text-xl font-semibold text-white">Media-86</h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Utility Buttons */}
-            {currentImage && (
-              <div className="flex items-center space-x-2">
-                {/* <div className="relative">
-                  <button
-                    onClick={() => setShowUpscaleOptions(!showUpscaleOptions)}
-                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <MdAutoFixHigh size={16} />
-                    <span>Upscale</span>
-                  </button>
-                  {showUpscaleOptions && (
-                    <div 
-                      className="absolute top-full left-0 mt-2 w-32 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10"
-                      onMouseLeave={() => setShowUpscaleOptions(false)}
-                    >
-                      <button onClick={() => handleUpscale(2)} className="w-full text-left px-4 py-2 hover:bg-gray-600 rounded-t-lg">2x Upscale</button>
-                      <button onClick={() => handleUpscale(4)} className="w-full text-left px-4 py-2 hover:bg-gray-600 rounded-b-lg">4x Upscale</button>
-                    </div>
-                  )}
-                </div> */}
-                
-                <button
-                  onClick={handleBatchRename}
-                  className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                  title="Batch Rename Utility"
-                >
-                  <MdDriveFileRenameOutline size={16} />
-                  <span>Rename</span>
-                </button>
-              </div>
-            )}
-
-            {currentImage && (
-              <div className="flex items-center space-x-3">
-                <span className="text-gray-300 font-medium">{currentImage}</span>
-                <span className="text-sm text-gray-400">
-                  {currentImageIndex + 1} / {imageFiles.length}
-                </span>
-              </div>
-            )}
+      {/* Drag & Drop Overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 bg-blue-900 bg-opacity-80 z-50 flex items-center justify-center">
+          <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-blue-400">
+            <div className="text-6xl mb-4">📁</div>
+            <h3 className="text-2xl font-bold mb-2">Drop files here</h3>
+            <p className="text-gray-600 dark:text-gray-300">
+              {draggedFileCount > 1 
+                ? `Drop ${draggedFileCount} files to load them`
+                : 'Drop an image file or folder to load images'
+              }
+            </p>
           </div>
         </div>
-      </header>
+      )}
+      
+      {/* Advanced Toolbar */}
+      <AdvancedToolbar
+        slideshow={slideshow}
+        zoom={zoom}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={handleToggleFullscreen}
+        showSidebar={showSidebar}
+        onToggleSidebar={handleToggleSidebar}
+        onToggleComparison={handleToggleComparison}
+        comparisonActive={comparisonActive}
+        onShowSettings={handleShowSettings}
+        onShowHelp={handleShowHelp}
+        currentImage={imageNavigation.currentImage}
+        imageFiles={imageFiles}
+        currentImageIndex={imageNavigation.currentImageIndex}
+      />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-          <div className="p-4 border-b border-gray-700">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Open</label>
-              <div className="flex">
-                <button
-                  onClick={selectImageFile}
-                  className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 rounded-l-md flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <MdImage size={18} />
-                  <span>Image</span>
-                </button>
-                <button
-                  onClick={selectVideoFile}
-                  className="w-1/2 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-r-md flex items-center justify-center space-x-2 transition-colors border-l border-gray-500"
-                >
-                  <MdMovie size={18} />
-                  <span>Video</span>
-                </button>
-              </div>
+        {showSidebar && (
+          <Suspense fallback={
+            <div className="w-80 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex items-center justify-center">
+              <LoadingSpinner size={24} />
             </div>
-            <p className="text-gray-400">{message}</p>
-          </div>
-          
-          <div className="flex-1 p-4 overflow-y-auto">
-            {currentDirectory && (
-              <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-                <p className="text-xs text-gray-400 mb-1">Current Folder</p>
-                <p className="text-sm text-gray-200 break-all">{currentDirectory}</p>
-              </div>
-            )}
-            {imageFiles.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-300 mb-2">Images found: {imageFiles.length}</p>
-                <div className="flex items-center justify-between mb-2">
-                  <button
-                    onClick={selectAllFiles}
-                    className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    <MdSelectAll size={18} />
-                    <span>{selectedFiles.size === imageFiles.length ? 'Deselect All' : 'Select All'}</span>
-                  </button>
-                  <div className="flex items-center space-x-1">
-                    <button onClick={() => setViewMode('list')} className={`p-1 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
-                      <MdViewList size={18} />
-                    </button>
-                    <button onClick={() => setViewMode('grid')} className={`p-1 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>
-                      <MdViewModule size={18} />
-                    </button>
-                  </div>
-                </div>
-                {selectedFiles.size > 0 && (
-                    <span className="text-sm text-blue-400 mb-2 block">{selectedFiles.size} selected</span>
-                )}
+          }>
+            <EnhancedSidebar
+              onSelectImageFile={selectImageFile}
+              onSelectDocumentFile={selectDocumentFile}
+              isFileSelectionLoading={loadingStates.fileSelection}
+              isDirectoryLoading={loadingStates.directory}
+              message={message}
+              currentDirectory={currentDirectory}
+              imageFiles={imageFiles}
+              currentImageIndex={imageNavigation.currentImageIndex}
+              onSelectImage={imageNavigation.selectImage}
+              onToggleFileSelection={fileSelection.toggleFileSelection}
+              onSelectAllFiles={fileSelection.selectAllFiles}
+              isFileSelected={fileSelection.isFileSelected}
+              selectedCount={fileSelection.selectedCount}
+              isAllSelected={fileSelection.isAllSelected}
+              viewMode={viewMode}
+              onSetListView={setListView}
+              onSetGridView={setGridView}
+            />
+          </Suspense>
+        )}
 
-                {viewMode === 'list' && (
-                  <div className="max-h-64 overflow-y-auto">
-                    {imageFiles.map((file, index) => (
-                      <div 
-                        key={index} 
-                        className={`flex items-center space-x-3 text-xs py-2 px-3 rounded cursor-pointer transition-colors ${
-                          index === currentImageIndex 
-                            ? 'bg-blue-600 text-white' 
-                            : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-                        }`}
-                        onClick={() => selectImage(index)}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFileSelection(file);
-                          }}
-                          className="p-1"
-                        >
-                          {selectedFiles.has(file) ? (
-                            <MdCheckBox size={16} className="text-blue-300" />
-                          ) : (
-                            <MdCheckBoxOutlineBlank size={16} />
-                          )}
-                        </button>
-                        <div className="truncate flex-1">{file}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {viewMode === 'grid' && (
-                  <div className="max-h-64 overflow-y-auto grid grid-cols-3 gap-2">
-                    {imageFiles.map((file, index) => (
-                      <div
-                        key={index}
-                        className={`relative group cursor-pointer rounded overflow-hidden border-2 ${
-                          index === currentImageIndex ? 'border-blue-500' : 'border-transparent'
-                        }`}
-                        onClick={() => selectImage(index)}
-                      >
-                        <img
-                          src={`${convertFileSrc(currentDirectory + '/' + file)}`}
-                          alt={file}
-                          className="w-full h-20 object-cover"
-                        />
-                        <div
-                          className="absolute top-1 left-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFileSelection(file);
-                          }}
-                        >
-                          {selectedFiles.has(file) ? (
-                            <MdCheckBox size={20} className="text-blue-500 bg-white/70 rounded" />
-                          ) : (
-                            <MdCheckBoxOutlineBlank size={20} className="text-white bg-black/50 rounded group-hover:block hidden" />
-                          )}
-                        </div>
-                         <div className="absolute bottom-0 left-0 right-0 bg-black/50 p-1">
-                          <p className="text-white text-[10px] truncate">{file}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Main Content - Image Display */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 relative overflow-auto">
-            {currentImagePath ? (
-              <div className="image-container w-full h-full flex items-center justify-center p-2 md:p-4">
-                <img
-                  key={currentImagePath}
-                  src={currentImagePath}
-                  alt={currentImage}
-                  className="max-w-full max-h-full object-contain shadow-2xl"
-                />
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center text-center">
-                <div className="space-y-6">
-                  <div className="w-24 h-24 mx-auto bg-gray-700 rounded-full flex items-center justify-center">
-                    <MdImage className="text-gray-400" size={40} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold text-white mb-2">Select an image to get started</h3>
-                    <p className="text-gray-400 mb-4">Use the sidebar to open an image file.</p>
-                  </div>
+            <Suspense fallback={
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <LoadingSpinner size={40} className="mb-4" />
+                  <p className="text-gray-400">Loading image viewer...</p>
                 </div>
               </div>
-            )}
+            }>
+              <OptimizedImageViewer
+                currentImagePath={currentImagePath}
+                currentImage={imageNavigation.currentImage}
+                currentImageIndex={imageNavigation.currentImageIndex}
+                imageFiles={imageFiles}
+                currentDirectory={currentDirectory}
+                imageKey={imageKey}
+                zoom={zoom}
+                slideshow={slideshow}
+              />
+            </Suspense>
           </div>
 
-          {/* Navigation Footer */}
-          {currentImagePath && (
-            <footer className="bg-gray-800 border-t border-gray-700 px-4 py-2 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={navigatePrevious}
-                    disabled={imageFiles.length <= 1}
-                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <MdChevronLeft size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleRotate(-90)}
-                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <MdRotateLeft size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleRotate(90)}
-                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <MdRotateRight size={18} />
-                  </button>
-                  <button
-                    onClick={navigateNext}
-                    disabled={imageFiles.length <= 1}
-                    className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <MdChevronRight size={18} />
-                  </button>
-                  <span className="text-sm text-gray-400 pl-2">
-                    Use ← → arrow keys or spacebar to navigate
-                  </span>
-                </div>
-                <span className="text-sm font-mono text-gray-300">
-                  {currentImageIndex + 1} / {imageFiles.length}
-                </span>
-              </div>
-            </footer>
+          {currentImagePath && !comparisonActive && (
+            <NavigationFooter
+              currentImageIndex={imageNavigation.currentImageIndex}
+              totalImages={imageNavigation.totalImages}
+              onNavigatePrevious={slideshow.isPlaying ? slideshow.handlePrevious : imageNavigation.navigatePrevious}
+              onNavigateNext={slideshow.isPlaying ? slideshow.handleNext : imageNavigation.navigateNext}
+              onRotateLeft={() => handleRotate(-90)}
+              onRotateRight={() => handleRotate(90)}
+              isRotationLoading={loadingStates.rotation}
+              hasMultipleImages={imageNavigation.totalImages > 1}
+            />
           )}
         </main>
       </div>
 
-      {/* Batch Rename Modal */}
-      {showRenameModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Batch Rename</h2>
-                <button onClick={closeRenameModal} className="text-gray-400 hover:text-white transition-colors">
-                  <MdClose size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6 overflow-y-auto">
-              {/* Rename Mode */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-3">Rename Mode</label>
-                <div className="space-y-2">
-                  <label className="flex items-center"><input type="radio" name="renameMode" value="current" checked={renameMode === "current"} onChange={(e) => setRenameMode(e.target.value)} className="mr-3" /> Current image only ({currentImage || 'None'})</label>
-                  <label className="flex items-center"><input type="radio" name="renameMode" value="selected" checked={renameMode === "selected"} onChange={(e) => setRenameMode(e.target.value)} className="mr-3" disabled={selectedFiles.size === 0} /> <span className={`${selectedFiles.size === 0 ? 'text-gray-500' : ''}`}>Selected files ({selectedFiles.size})</span></label>
-                  <label className="flex items-center"><input type="radio" name="renameMode" value="all" checked={renameMode === "all"} onChange={(e) => setRenameMode(e.target.value)} className="mr-3" /> All files ({imageFiles.length})</label>
-                </div>
-              </div>
-
-              {/* Rename Pattern */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-3">Rename Pattern <span className="text-gray-500 text-xs ml-2">Use {'{n}'} for numbers, {'{ext}'} for extension</span></label>
-                <input type="text" value={renamePattern} onChange={(e) => setRenamePattern(e.target.value)} placeholder="e.g., Image_{n}{ext}" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-
-              {/* Start Number, Step */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">Start Number</label>
-                  <input 
-                    type="text" 
-                    value={renameStartString} 
-                    onChange={(e) => setRenameStartString(e.target.value.replace(/[^0-9]/g, ''))} 
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">Step Size</label>
-                  <input type="number" value={renameStepSize} onChange={(e) => setRenameStepSize(parseInt(e.target.value) || 1)} min="1" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-
-              {/* Preview */}
-              {renamePattern && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-3">Preview</label>
-                  <div className="bg-gray-900 rounded-lg p-4 max-h-40 overflow-y-auto">
-                    {generateNewFilenames().slice(0, 10).map(([oldName, newName], index) => (
-                      <div key={index} className="text-sm text-gray-300 py-1 font-mono"><span className="text-gray-500">{oldName}</span><span className="mx-2 text-blue-400">→</span><span className="text-white">{newName}</span></div>
-                    ))}
-                    {generateNewFilenames().length > 10 && <div className="text-sm text-gray-500 pt-2">... and {generateNewFilenames().length - 10} more</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-700 mt-auto">
-              <div className="flex justify-end space-x-3">
-                <button onClick={closeRenameModal} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                <button onClick={executeRename} disabled={!renamePattern.trim()} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors">Rename Files</button>
-              </div>
-            </div>
+      {/* Image Comparison Mode */}
+      {comparisonActive && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+            <LoadingSpinner size={40} />
           </div>
-        </div>
+        }>
+          <ImageComparison
+            leftImage={comparisonImages.left}
+            rightImage={comparisonImages.right}
+            onClose={handleCloseComparison}
+            currentDirectory={currentDirectory}
+            imageKey={imageKey}
+          />
+        </Suspense>
       )}
+
+      {/* Modals */}
+      <Suspense fallback={null}>
+        <RenameModal
+          isOpen={showRenameModal}
+          currentImage={imageNavigation.currentImage}
+          selectedCount={fileSelection.selectedCount}
+          totalImages={imageNavigation.totalImages}
+          onClose={closeRenameModal}
+          onExecuteRename={executeRename}
+          isRenameLoading={loadingStates.rename}
+        />
+      </Suspense>
     </div>
   );
 }
 
-export default App;
+function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  );
+}
+
+export default App; 

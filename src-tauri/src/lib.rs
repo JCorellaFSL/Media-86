@@ -1,8 +1,12 @@
-use image::{self, imageops::FilterType, ImageFormat, DynamicImage};
+use image::{self, imageops::FilterType, ImageFormat, GenericImageView};
 use std::fs;
 use std::path::Path;
 use tauri::{Manager, Emitter};
 use serde::{Deserialize, Serialize};
+use rayon::prelude::*;
+use std::collections::HashMap;
+
+use base64::{engine::general_purpose, Engine as _};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -147,6 +151,142 @@ fn rotate_image(directory: String, filename: String, degrees: i32) -> Result<(),
     Ok(())
 }
 
+#[derive(Serialize, Deserialize)]
+struct ThumbnailData {
+    filename: String,
+    thumbnail: String, // Base64 encoded thumbnail
+    width: u32,
+    height: u32,
+    file_size: u64,
+}
+
+#[tauri::command]
+fn generate_thumbnail(directory: String, filename: String, max_size: u32) -> Result<String, String> {
+    let path = Path::new(&directory).join(&filename);
+    if !path.exists() {
+        return Err("File does not exist.".to_string());
+    }
+
+    let img = image::open(&path).map_err(|e| e.to_string())?;
+    
+    // Calculate thumbnail dimensions maintaining aspect ratio
+    let (width, height) = img.dimensions();
+    let (thumb_width, thumb_height) = if width > height {
+        let ratio = height as f32 / width as f32;
+        (max_size, (max_size as f32 * ratio) as u32)
+    } else {
+        let ratio = width as f32 / height as f32;
+        ((max_size as f32 * ratio) as u32, max_size)
+    };
+
+    // Generate thumbnail
+    let thumbnail = img.resize_exact(thumb_width, thumb_height, FilterType::Lanczos3);
+    
+    // Convert to bytes and encode as base64
+    let mut bytes: Vec<u8> = Vec::new();
+    thumbnail
+        .write_to(&mut std::io::Cursor::new(&mut bytes), ImageFormat::Jpeg)
+        .map_err(|e| e.to_string())?;
+    
+    let base64_thumbnail = general_purpose::STANDARD.encode(&bytes);
+    
+    Ok(base64_thumbnail)
+}
+
+#[tauri::command]
+fn generate_thumbnails_batch(
+    directory: String, 
+    filenames: Vec<String>, 
+    max_size: u32
+) -> Result<Vec<ThumbnailData>, String> {
+    let dir_path = Path::new(&directory);
+    
+    if !dir_path.exists() {
+        return Err("Directory does not exist".to_string());
+    }
+
+    // Use parallel processing for thumbnail generation
+    let thumbnails: Result<Vec<ThumbnailData>, String> = filenames
+        .par_iter()
+        .map(|filename| {
+            let path = dir_path.join(filename);
+            
+            if !path.exists() {
+                return Err(format!("File {} does not exist", filename));
+            }
+
+            // Get file size
+            let file_size = fs::metadata(&path)
+                .map_err(|e| format!("Failed to get file metadata for {}: {}", filename, e))?
+                .len();
+
+            // Open and process image
+            let img = image::open(&path)
+                .map_err(|e| format!("Failed to open image {}: {}", filename, e))?;
+            
+            let (original_width, original_height) = img.dimensions();
+            
+            // Calculate thumbnail dimensions maintaining aspect ratio
+            let (thumb_width, thumb_height) = if original_width > original_height {
+                let ratio = original_height as f32 / original_width as f32;
+                (max_size, (max_size as f32 * ratio) as u32)
+            } else {
+                let ratio = original_width as f32 / original_height as f32;
+                ((max_size as f32 * ratio) as u32, max_size)
+            };
+
+            // Generate thumbnail
+            let thumbnail = img.resize_exact(thumb_width, thumb_height, FilterType::Lanczos3);
+            
+            // Convert to bytes and encode as base64
+            let mut bytes: Vec<u8> = Vec::new();
+            thumbnail
+                .write_to(&mut std::io::Cursor::new(&mut bytes), ImageFormat::Jpeg)
+                .map_err(|e| format!("Failed to encode thumbnail for {}: {}", filename, e))?;
+            
+            let base64_thumbnail = general_purpose::STANDARD.encode(&bytes);
+            
+            Ok(ThumbnailData {
+                filename: filename.clone(),
+                thumbnail: base64_thumbnail,
+                width: original_width,
+                height: original_height,
+                file_size,
+            })
+        })
+        .collect();
+
+    thumbnails
+}
+
+#[tauri::command]
+fn get_image_metadata(directory: String, filename: String) -> Result<HashMap<String, String>, String> {
+    let path = Path::new(&directory).join(&filename);
+    if !path.exists() {
+        return Err("File does not exist.".to_string());
+    }
+
+    let mut metadata = HashMap::new();
+    
+    // Get file metadata
+    if let Ok(file_metadata) = fs::metadata(&path) {
+        metadata.insert("file_size".to_string(), file_metadata.len().to_string());
+        if let Ok(modified) = file_metadata.modified() {
+            metadata.insert("modified".to_string(), format!("{:?}", modified));
+        }
+    }
+
+    // Get image dimensions
+    if let Ok(img) = image::open(&path) {
+        let (width, height) = img.dimensions();
+        metadata.insert("width".to_string(), width.to_string());
+        metadata.insert("height".to_string(), height.to_string());
+        metadata.insert("color_type".to_string(), format!("{:?}", img.color()));
+    }
+
+    Ok(metadata)
+}
+
 #[tauri::command]
 fn upscale_image(directory: String, filename: String, scale: u32) -> Result<String, String> {
     let dir_path = Path::new(&directory);
@@ -234,6 +374,9 @@ pub fn run() {
             get_full_path,
             rename_files,
             rotate_image,
+            generate_thumbnail,
+            generate_thumbnails_batch,
+            get_image_metadata,
             upscale_image
         ])
         .run(tauri::generate_context!())
