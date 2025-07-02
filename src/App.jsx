@@ -28,6 +28,7 @@ import AdvancedToolbar from "./components/UI/AdvancedToolbar";
 const OptimizedImageViewer = lazy(() => import("./components/ImageViewer/OptimizedImageViewer"));
 const EnhancedSidebar = lazy(() => import("./components/Sidebar/EnhancedSidebar"));
 const RenameModal = lazy(() => import("./components/Modals/RenameModal"));
+const SettingsModal = lazy(() => import("./components/Modals/SettingsModal"));
 const ImageComparison = lazy(() => import("./components/ImageViewer/ImageComparison"));
 
 import "./App.css";
@@ -576,6 +577,10 @@ function AppContent() {
           onClose={closeRenameModal}
           onExecuteRename={executeRename}
           isRenameLoading={loadingStates.rename}
+        />
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
         />
       </Suspense>
     </div>

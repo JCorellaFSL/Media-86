@@ -15,7 +15,7 @@
 - **Professional Toolbar**: Contextual controls with dropdown menus and progress indicators
 - **Customizable Shortcuts**: Fully configurable keyboard shortcuts with live recording and conflict detection
 - **Advanced Animations**: Smooth transitions, fade effects, and hardware-accelerated animations
-- **Accessibility Support**: Full keyboard navigation, screen reader support, and high contrast themes
+- **Accessibility Support**: Full keyboard navigation and consistent design patterns
 
 ### 🔍 **Advanced Zoom & Navigation**
 - **Multi-Mode Zoom**: Auto-fit, Fit-to-width, Fit-to-height, Actual size, and Custom zoom modes
@@ -88,7 +88,7 @@
 - `F2` - Rename files
 - `L` `R` - Rotate left/right
 
-*All shortcuts are fully customizable in the application settings.*
+*All shortcuts are fully customizable through the keyboard shortcuts system.*
 
 ## 🚀 Release 1.1 - Advanced UI/UX
 
@@ -147,9 +147,10 @@ Media-86 **version 1.1** introduces a comprehensive advanced UI/UX system, trans
 - **Escape** to close comparison mode
 
 #### Customizable Shortcuts
-- Press **F1** or **?** to view help and shortcuts
+- Access shortcut customization through the keyboard shortcuts system
 - **Live recording** - Click any action and press a key to reassign
 - **Import/Export** shortcut configurations for backup
+- **Conflict detection** warns about duplicate assignments
 
 ### 🔧 **Batch Operations**
 1. **Batch Renaming**:
@@ -160,10 +161,15 @@ Media-86 **version 1.1** introduces a comprehensive advanced UI/UX system, trans
    - Set start number with leading zeros for padding (e.g., `001`)
    - Preview changes before applying
 
-2. **File Management**:
-   - **Delete** key to remove current image
+2. **Image Processing**:
    - **L/R** keys for quick rotation
+   - **Upscaling** with Lanczos3 filtering for quality results
+   - **Delete** key to remove current image
+
+3. **File Management**:
    - **Ctrl+A** to select all files in sidebar
+   - **Virtual scrolling** handles thousands of images efficiently
+   - **Drag & Drop** for easy file loading
 
 ### 💡 **Pro Tips**
 - **Right-click** images for context menu options
@@ -171,3 +177,36 @@ Media-86 **version 1.1** introduces a comprehensive advanced UI/UX system, trans
 - **Esc** key closes any modal or exits fullscreen
 - **Toggle sidebar** with Tab for distraction-free viewing
 - All UI preferences are **automatically saved**
+- Use **comparison mode** for detailed image analysis
+
+## 🔮 **Future Development**
+
+Media-86 is actively developed with many exciting features planned. Check out our roadmap:
+
+- **Settings System**: Comprehensive preferences panel (see `settings_cog_plan.md`)
+- **Document Viewer**: PDF and markdown viewing capabilities
+- **Help System**: Interactive tutorials and comprehensive documentation
+- **Advanced Features**: See `future_features.md` for the complete roadmap
+
+## 🛠️ **Installation**
+
+### **Windows**
+- Download the latest release from the [Releases](https://github.com/JCorellaFSL/Media-86/releases) page
+- Run the installer (MSI or NSIS) with administrator privileges
+- Media-86 will be available in your Start Menu
+
+### **macOS & Linux**
+- AppImage and DEB packages available upon request
+- Build from source: `npm install && npm run tauri build`
+
+## 🤝 **Contributing**
+
+We welcome contributions! Please see our contribution guidelines and check the `future_features.md` for areas where help is needed.
+
+## 📄 **License**
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+**Media-86** - Professional image viewing made simple and powerful.
